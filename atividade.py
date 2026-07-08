@@ -305,6 +305,18 @@ if __name__ == "__main__":
     dark_rock_mat = solid_material(shader, (0.38, 0.34, 0.30), roughness=0.9)
     beam_mat = solid_material(shader, (1.0, 0.85, 0.2), roughness=0.1, metallic=0.0)
 
+    blackTextureR = Texture(np.zeros((1, 1), np.uint8), GL.GL_RED, GL.GL_R8)
+
+    brick_color = Texture.load_file("assets/external_materials/Bricks104_1K-JPG/Bricks104_1K-JPG_Color.jpg",
+                                    srgb=True, drop_alpha=True)
+    brick_roughness = Texture.load_file("assets/external_materials/Bricks104_1K-JPG/Bricks104_1K-JPG_Roughness.jpg",
+                                        drop_alpha=True)
+    brick_mat = Material(shader)
+    brick_mat.set_texture(0, "baseColorTexture", brick_color)
+    brick_mat.set_texture(1, "metallicTexture", blackTextureR)
+    brick_mat.set_texture(2, "roughnessTexture", brick_roughness)
+    brick_mat.set_uniform("tiling", 2.0)
+
     sphere_mesh = urenderer.geometry.mesh.get_mesh_sphere()
     cube_mesh = urenderer.geometry.mesh.get_mesh_cube()
 
@@ -356,7 +368,7 @@ if __name__ == "__main__":
     tower_mesh = cylinder_body(0.55, 0.34, 1.5, 8)
     tower = Node("tower")
     tower.render_data["mesh"] = tower_mesh
-    tower.render_data["material"] = white_mat
+    tower.render_data["material"] = brick_mat
     tower.translation = np.array([0, 0.75, 0], np.float32)
     lh.add_child(tower)
 
