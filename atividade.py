@@ -1,3 +1,5 @@
+from collections import deque
+
 import numpy as np
 import urenderer
 from OpenGL import GL
@@ -445,6 +447,18 @@ if __name__ == "__main__":
         sr.scale = np.array([0.10, 0.06, 0.08], np.float32)
         lh.add_child(sr)
 
+    # === BOAT ===
+    boat_root = urenderer.geometry.mesh.load_glb("assets/external_meshes/stylized_low_poly_rowboat_with_paddles.glb")
+    boat_root.translation = np.array([0.7, 0.00, 0.9], np.float32)
+    boat_root.scale = np.array([0.012, 0.012, 0.012], np.float32)
+    nodes = deque([boat_root])
+    while nodes:
+        n = nodes.pop()
+        n.render_data["material"] = white_mat
+        nodes += n.children
+    boat_root.callbacks = [lambda n, dt, t: setattr(n, 'translation', np.array([0.7, 0.0 - 0.015 * np.sin(2.5 * t), 0.9]))]
+    scene_root.add_child(boat_root)
+
     # === WATER ===
     water_mesh = grid_mesh(16.0, 24)
     water = Node("water")
@@ -502,10 +516,10 @@ if __name__ == "__main__":
     fill_light.light_intensity = 0.8
     runtime.scene.add_child(fill_light)
 
-    beacon = urenderer.node.Light(urenderer.node.LightType.POINT)
-    beacon.light_color = np.array([1.0, 0.85, 0.5], np.float32)
-    beacon.light_intensity = 10.0
-    beacon.light_reference_distance = 2.5
+    # beacon = urenderer.node.Light(urenderer.node.LightType.POINT)
+    # beacon.light_color = np.array([1.0, 0.85, 0.5], np.float32)
+    # beacon.light_intensity = 10.0
+    # beacon.light_reference_distance = 2.5
     # lantern.add_child(beacon)
 
     # === RENDER ===
