@@ -8,31 +8,6 @@ from urenderer.renderer.opengl import Material, Shader, Texture
 from urenderer.geometry.mesh import Mesh
 from icosphere import icosphere
 
-
-def line_mesh(length, radius, segments=4):
-    verts = [[0, 0, 0]]
-    uvs = [[0.5, 1.0]]
-    norms = [[1, 0, 0]]
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        verts.append([length, ca * radius, sa * radius])
-        n = np.array([1, 0, 0], np.float32)
-        norms.append(n.tolist())
-        uvs.append([i / segments, 0])
-    idx = []
-    for i in range(segments):
-        v1 = 1 + i
-        v2 = 1 + (i + 1) % segments
-        idx += [0, v1, v2]
-    return Mesh(
-        np.array(verts, np.float32),
-        np.array(idx, np.uint32),
-        np.array(uvs, np.float32),
-        normal=np.array(norms, np.float32),
-    )
-
-
 def color_texture(r, g, b):
     data = np.array([[[r, g, b]]], dtype=np.uint8)
     return Texture(data, GL.GL_RGB, GL.GL_RGB)
@@ -277,40 +252,13 @@ if __name__ == "__main__":
     water.render_data["size"] = 16.0
     water.callbacks = [update_water]
     scene_root.add_child(water)
-
-    # === LIGHTS ===
-    sun = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
-    # sun.render_data["mesh"] = sphere_mesh
-    # sun.render_data["material"] = solid_material(shader, (1.0, 0.55, 0.2), roughness=0.5)
-    # sun.scale = np.array([0.01, 0.01, 0.01], np.float64)
-    # sun.translation = np.array([0, 0.5, -3], np.float64)
-    # sun.rotation = np.array([175, -5, 5], np.float64)
-    # sun.light_color = np.array([1.0, 0.55, 0.2], np.float32)
-    # sun.light_intensity = 10.0
-    # runtime.scene.add_child(sun)
-
-    # sun2 = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
-    # sun2.rotation = np.array([0, 0, 180], np.float64)
-    # sun2.light_color = np.array([1.0, 0.55, 0.2], np.float32)
-    # sun2.light_intensity = 5.0
-    # runtime.scene.add_child(sun2)
   
-
     fill_light = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
     # shape for debug:
     fill_light.rotation = np.array([25, 110, 0], np.float64)
     fill_light.light_color = np.array([0.7, 0.65, 1.0], np.float32)
     fill_light.light_intensity = 0.8
     runtime.scene.add_child(fill_light)
-
-    # debug markers:
-    # for pos in [(0, -2)]:
-    #     marker = Node(f"marker_{pos}")
-    #     marker.render_data["mesh"] = sphere_mesh
-    #     marker.render_data["material"] = solid_material(shader, (1.0, 0, 0), roughness=0.5)
-    #     marker.scale = np.array([0.05, 0.05, 0.05], np.float64)
-    #     marker.translation = np.array([pos[0], 0.5, pos[1]], np.float64)
-    #     runtime.scene.add_child(marker)
 
     # === RENDER ===
     video = True
