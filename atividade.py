@@ -9,6 +9,30 @@ from urenderer.geometry.mesh import Mesh
 from icosphere import icosphere
 
 
+def line_mesh(length, radius, segments=4):
+    verts = [[0, 0, 0]]
+    uvs = [[0.5, 1.0]]
+    norms = [[1, 0, 0]]
+    for i in range(segments):
+        a = 2 * np.pi * i / segments
+        ca, sa = np.cos(a), np.sin(a)
+        verts.append([length, ca * radius, sa * radius])
+        n = np.array([1, 0, 0], np.float32)
+        norms.append(n.tolist())
+        uvs.append([i / segments, 0])
+    idx = []
+    for i in range(segments):
+        v1 = 1 + i
+        v2 = 1 + (i + 1) % segments
+        idx += [0, v1, v2]
+    return Mesh(
+        np.array(verts, np.float32),
+        np.array(idx, np.uint32),
+        np.array(uvs, np.float32),
+        normal=np.array(norms, np.float32),
+    )
+
+
 def color_texture(r, g, b):
     data = np.array([[[r, g, b]]], dtype=np.uint8)
     return Texture(data, GL.GL_RGB, GL.GL_RGB)
@@ -71,11 +95,11 @@ def rock_mesh(subdiv=2):
     return Mesh(vertices, faces, uv, normal=normals)
 
 
-def update_water(node, dt, t):
+def update_water(node: Node, dt: float, t: float):
     mesh = node.render_data["mesh"]
     verts = mesh.vertex.copy().reshape(-1, 3)
-    sd = node._water_subdiv
-    sz = node._water_size
+    sd = node.render_data["subdiv"]
+    sz = node.render_data["size"]
     half = sz / 2
     for z in range(sd + 1):
         for x in range(sd + 1):
@@ -85,8 +109,16 @@ def update_water(node, dt, t):
             verts[idx, 1] = 0.02 * np.sin(2.5 * vx + 0.5 * t) + 0.025 * np.sin(1.8 * vz + 1 * t + 1.0)
     mesh.vertex = verts.flatten()
 
+def update_beacon(node: Node, dt: float, t: float):
+    parent_rot = node.parent.rotation[1]
+    angle_deg = parent_rot % 360
+    dist = min(angle_deg, 360 - angle_deg, abs(angle_deg - 180))
+    raw = np.clip(1.0 - (dist / 70.0) ** 1.5, 0.0, 1.0)
+    intensity = raw * np.exp(-(dist ** 2) / (2.0 * 50.0 ** 2))
+    node.light_intensity = float(intensity * 3.0)
 
-def update_boat(node, dt, t):
+
+def update_boat(node: Node, dt: float, t: float):
     node.translation = np.array([0.7, -0.12 + 0.005 * np.sin(1.5 * t), 1], np.float32)
     node.rotation[0] = 5 * np.sin(1.0 * t)
     node.rotation[2] = 3 * np.sin(0.6 * t + 0.5)
@@ -117,22 +149,18 @@ if __name__ == "__main__":
     renderer.background_color = np.array([0.05, 0.08, 0.25, 1.0], np.float32)
     renderer.ambient_color = np.array([0.15, 0.12, 0.18], dtype=np.float32)
     runtime = urenderer.application.Runtime(renderer, name=NOME_DA_CENA)
-    runtime.camera.vertical_fov = 38.0
+    runtime.camera.vertical_fov = 45.0
 
     shader = Shader("assets/vertex.vs", "assets/05-fragment.fs")
 
     white_mat = solid_material(shader, (0.96, 0.96, 0.93), roughness=0.6)
     red_mat = solid_material(shader, (0.85, 0.15, 0.10), roughness=0.5)
     roof_mat = solid_material(shader, (0.65, 0.08, 0.04), roughness=0.4)
-    lantern_mat = solid_material(shader, (1.0, 0.95, 0.55), roughness=0.2, metallic=0.3)
     rock_mat = solid_material(shader, (0.55, 0.50, 0.44), roughness=0.9)
     water_mat = solid_material(shader, (0.06, 0.22, 0.30), roughness=0.3, metallic=0.05)
-    window_mat = solid_material(shader, (0.75, 0.88, 1.0), roughness=0.1)
     door_mat = solid_material(shader, (0.28, 0.18, 0.08), roughness=0.7)
     rail_mat = solid_material(shader, (0.25, 0.25, 0.25), roughness=0.3, metallic=0.5)
     dark_rock_mat = solid_material(shader, (0.38, 0.34, 0.30), roughness=0.9)
-    beam_mat = solid_material(shader, (1.0, 0.85, 0.2), roughness=0.1, metallic=0.0)
-    brick_mat = solid_material(shader, (0.92, 0.25, 0.12), roughness=0.7)
     wood_mat = solid_material(shader, (0.55, 0.33, 0.15), roughness=0.6)
 
     sphere_mesh = urenderer.geometry.mesh.get_mesh_sphere()
@@ -181,15 +209,42 @@ if __name__ == "__main__":
     # === GLB LIGHTHOUSE ===
     glb_lh = urenderer.geometry.mesh.load_glb("assets/external_meshes/low_poly_lighthouse.glb")
     glb_lh.translation = np.array([0.75, 0.35, 0.75], np.float32)
-    glb_lh.scale = np.array([0.225, 0.225, 0.225], np.float32)
+    glb_lh.scale = np.array([0.25, 0.25, 0.25], np.float32)
     glb_lh.rotation = np.array([0, -70, 0], np.float32)
+
+    beacon = urenderer.node.Light(urenderer.node.LightType.POINT)
+    beacon.light_color = np.array([1.0, 0.85, 0], np.float32)
+    # debug shape for the light:
+    # beacon.render_data["mesh"] = sphere_mesh
+    # beacon.render_data["material"] = solid_material(shader, (1.0, 0, 0), roughness=0.2)
+    beacon.translation = np.array([1.0, 0, 0.4], np.float32)
+    beacon.scale = np.array([0.25, 0.25, 0.25], np.float32)
+    beacon.light_reference_distance = 2.5
+    beacon.callbacks = [update_beacon]
+
+    # copy beacon to the other side of the tower:
+    beacon2 = urenderer.node.Light(urenderer.node.LightType.POINT)
+    beacon2.light_color = np.array([1.0, 0.85, 0], np.float32)
+    # debug shape for the light:
+    # beacon2.render_data["mesh"] = sphere_mesh
+    # beacon2.render_data["material"] = solid_material(shader, (1.0, 0, 0), roughness=0.2)
+    beacon2.translation = np.array([-1.0, 0, 0.4], np.float32)
+    beacon2.scale = np.array([0.25, 0.25, 0.25], np.float32)
+    beacon2.light_reference_distance = 2.5
+    beacon2.callbacks = [update_beacon]
+
     nodes = deque([glb_lh])
     while nodes:
         n = nodes.pop()
         if "base" in n.name:
             n.render_data["material"] = red_mat
-        elif "tower" in n.name:
+        elif n.name == "top tower_Material_0":
             n.render_data["material"] = white_mat
+        elif n.name == "top tower":
+            # n.rotation = np.array([-90, 70, 0], np.float32)
+            n.add_child(beacon)
+            n.add_child(beacon2)
+            n.callbacks.append(lambda node, dt, t: setattr(node, "rotation", np.array([-90, 30 * t, 0], np.float32)))
         elif "door" in n.name:
             n.render_data["material"] = door_mat
         elif "raling" in n.name or "ladder" in n.name:
@@ -218,29 +273,44 @@ if __name__ == "__main__":
     water.render_data["mesh"] = water_mesh
     water.render_data["material"] = water_mat
     water.translation = np.array([0, -0.05, 0], np.float32)
-    water._water_subdiv = 24
-    water._water_size = 16.0
+    water.render_data["subdiv"] = 24
+    water.render_data["size"] = 16.0
     water.callbacks = [update_water]
     scene_root.add_child(water)
 
     # === LIGHTS ===
     sun = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
-    sun.rotation = np.array([15, -40, 0], np.float64)
-    sun.light_color = np.array([1.0, 0.55, 0.2], np.float32)
-    sun.light_intensity = 2.0
-    runtime.scene.add_child(sun)
+    # sun.render_data["mesh"] = sphere_mesh
+    # sun.render_data["material"] = solid_material(shader, (1.0, 0.55, 0.2), roughness=0.5)
+    # sun.scale = np.array([0.01, 0.01, 0.01], np.float64)
+    # sun.translation = np.array([0, 0.5, -3], np.float64)
+    # sun.rotation = np.array([175, -5, 5], np.float64)
+    # sun.light_color = np.array([1.0, 0.55, 0.2], np.float32)
+    # sun.light_intensity = 10.0
+    # runtime.scene.add_child(sun)
+
+    # sun2 = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
+    # sun2.rotation = np.array([0, 0, 180], np.float64)
+    # sun2.light_color = np.array([1.0, 0.55, 0.2], np.float32)
+    # sun2.light_intensity = 5.0
+    # runtime.scene.add_child(sun2)
+  
 
     fill_light = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
+    # shape for debug:
     fill_light.rotation = np.array([25, 110, 0], np.float64)
-    fill_light.light_color = np.array([0.55, 0.65, 1.0], np.float32)
+    fill_light.light_color = np.array([0.7, 0.65, 1.0], np.float32)
     fill_light.light_intensity = 0.8
     runtime.scene.add_child(fill_light)
 
-    # beacon = urenderer.node.Light(urenderer.node.LightType.POINT)
-    # beacon.light_color = np.array([1.0, 0.85, 0.5], np.float32)
-    # beacon.light_intensity = 10.0
-    # beacon.light_reference_distance = 2.5
-    # lantern.add_child(beacon)
+    # debug markers:
+    # for pos in [(0, -2)]:
+    #     marker = Node(f"marker_{pos}")
+    #     marker.render_data["mesh"] = sphere_mesh
+    #     marker.render_data["material"] = solid_material(shader, (1.0, 0, 0), roughness=0.5)
+    #     marker.scale = np.array([0.05, 0.05, 0.05], np.float64)
+    #     marker.translation = np.array([pos[0], 0.5, pos[1]], np.float64)
+    #     runtime.scene.add_child(marker)
 
     # === RENDER ===
     video = True
