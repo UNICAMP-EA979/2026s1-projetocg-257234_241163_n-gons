@@ -233,18 +233,23 @@ def update_water(node, dt, t):
     mesh.vertex = verts.flatten()
 
 
-def update_cloud(node, dt, t):
-    speed = getattr(node, "_cloud_speed", 0.02)
-    node.translation[0] += speed * max(dt, 0)
 
+def rotate_beam(node, dt, t):
+    node.rotation[1] = (t * 60) % 360
+
+
+def update_boat(node, dt, t):
+    node.translation = np.array([0.7, -0.12 + 0.005 * np.sin(1.5 * t), 1], np.float32)
+    node.rotation[0] = 5 * np.sin(1.0 * t)
+    node.rotation[2] = 3 * np.sin(0.6 * t + 0.5)
 
 
 def create_sky_gradient():
     h = 256
     grad = np.zeros((h, 1, 3), dtype=np.uint8)
-    top = np.array([0.02, 0.02, 0.18])
-    mid = np.array([0.55, 0.18, 0.30])
-    horizon = np.array([1.0, 0.50, 0.12])
+    top = np.array([0.05, 0.08, 0.25])
+    mid = np.array([0.40, 0.25, 0.40])
+    horizon = np.array([0.95, 0.50, 0.20])
     for i in range(h):
         t = i / (h - 1)
         if t < 0.4:
@@ -287,7 +292,7 @@ NOME_DA_CENA = "lighthouse_scene"
 if __name__ == "__main__":
     urenderer.utils.clear_workdir(NOME_DA_CENA)
     renderer = urenderer.renderer.OpenGLRenderer(1920, 1080)
-    renderer.background_color = np.array([0.02, 0.02, 0.18, 1.0], np.float32)
+    renderer.background_color = np.array([0.05, 0.08, 0.25, 1.0], np.float32)
     renderer.ambient_color = np.array([0.15, 0.12, 0.18], dtype=np.float32)
     runtime = urenderer.application.Runtime(renderer, name=NOME_DA_CENA)
     runtime.camera.vertical_fov = 38.0
@@ -299,14 +304,13 @@ if __name__ == "__main__":
     roof_mat = solid_material(shader, (0.65, 0.08, 0.04), roughness=0.4)
     lantern_mat = solid_material(shader, (1.0, 0.95, 0.55), roughness=0.2, metallic=0.3)
     rock_mat = solid_material(shader, (0.55, 0.50, 0.44), roughness=0.9)
-    water_mat = solid_material(shader, (0.15, 0.55, 0.78), roughness=0.25, metallic=0.1)
-    cloud_mat = solid_material(shader, (1.0, 1.0, 1.0), roughness=0.95)
+    water_mat = solid_material(shader, (0.06, 0.22, 0.30), roughness=0.3, metallic=0.05)
     window_mat = solid_material(shader, (0.75, 0.88, 1.0), roughness=0.1)
     door_mat = solid_material(shader, (0.28, 0.18, 0.08), roughness=0.7)
     rail_mat = solid_material(shader, (0.25, 0.25, 0.25), roughness=0.3, metallic=0.5)
     dark_rock_mat = solid_material(shader, (0.38, 0.34, 0.30), roughness=0.9)
     beam_mat = solid_material(shader, (1.0, 0.85, 0.2), roughness=0.1, metallic=0.0)
-    brick_mat = solid_material(shader, (0.78, 0.32, 0.18), roughness=0.7)
+    brick_mat = solid_material(shader, (0.92, 0.25, 0.12), roughness=0.7)
     wood_mat = solid_material(shader, (0.55, 0.33, 0.15), roughness=0.6)
 
     sphere_mesh = urenderer.geometry.mesh.get_mesh_sphere()
@@ -352,101 +356,38 @@ if __name__ == "__main__":
     rock3.translation = np.array([0.6, -0.05, -0.4], np.float32)
     scene_root.add_child(rock3)
 
-    # === LIGHTHOUSE ===
-    lh = Node("lighthouse")
-    lh.translation = np.array([0, 0.35, 0], np.float32)
-    scene_root.add_child(lh)
-
-    tower_mesh = cylinder_body(0.55, 0.34, 1.5, 8)
-    tower = Node("tower")
-    tower.render_data["mesh"] = tower_mesh
-    tower.render_data["material"] = brick_mat
-    tower.translation = np.array([0, 0.75, 0], np.float32)
-    lh.add_child(tower)
-
-    stripe_mesh = capped_cylinder(0.39, 0.33, 0.13, 8)
-    s1 = Node("stripe1")
-    s1.render_data["mesh"] = stripe_mesh
-    s1.render_data["material"] = red_mat
-    s1.translation = np.array([0, 1.08, 0], np.float32)
-    lh.add_child(s1)
-
-    s2 = Node("stripe2")
-    s2.render_data["mesh"] = stripe_mesh
-    s2.render_data["material"] = red_mat
-    s2.translation = np.array([0, 0.45, 0], np.float32)
-    lh.add_child(s2)
-
-    balcony = Node("balcony")
-    balcony.render_data["mesh"] = capped_cylinder(0.44, 0.44, 0.05, 8)
-    balcony.render_data["material"] = white_mat
-    balcony.translation = np.array([0, 1.50, 0], np.float32)
-    lh.add_child(balcony)
-
-    for i in range(8):
-        a = 2 * np.pi * i / 8
-        post = Node(f"rail_{i}")
-        post.render_data["mesh"] = cube_mesh
-        post.render_data["material"] = rail_mat
-        post.translation = np.array([0.41 * np.cos(a), 1.57, 0.41 * np.sin(a)], np.float32)
-        post.scale = np.array([0.025, 0.08, 0.025], np.float32)
-        lh.add_child(post)
-
-    lantern = Node("lantern")
-    lantern.render_data["mesh"] = capped_cylinder(0.32, 0.32, 0.22, 8)
-    lantern.render_data["material"] = lantern_mat
-    lantern.translation = np.array([0, 1.66, 0], np.float32)
-    lh.add_child(lantern)
-
-    roof = Node("roof")
-    roof.render_data["mesh"] = cone_mesh(0.37, 0.30, 8)
-    roof.render_data["material"] = roof_mat
-    roof.translation = np.array([0, 1.86, 0], np.float32)
-    lh.add_child(roof)
-
-    finial = Node("finial")
-    finial.render_data["mesh"] = sphere_mesh
-    finial.render_data["material"] = roof_mat
-    finial.translation = np.array([0, 2.08, 0], np.float32)
-    finial.scale = np.array([0.05, 0.05, 0.05], np.float32)
-    lh.add_child(finial)
-
-    door = Node("door")
-    door.render_data["mesh"] = cube_mesh
-    door.render_data["material"] = door_mat
-    door.translation = np.array([0, 0.10, 0.555], np.float32)
-    door.scale = np.array([0.18, 0.22, 0.02], np.float32)
-    lh.add_child(door)
-
-    for wy in [0.65, 0.95]:
-        w = Node(f"win_{wy}")
-        w.render_data["mesh"] = cube_mesh
-        w.render_data["material"] = window_mat
-        w.translation = np.array([0, wy, 0.555], np.float32)
-        w.scale = np.array([0.10, 0.12, 0.02], np.float32)
-        lh.add_child(w)
-
-    # Small rocks at base
-    for ri in range(5):
-        a = 2 * np.pi * ri / 5 + 0.3
-        r = 0.5 + 0.15 * np.sin(ri * 2.1)
-        sr = Node(f"small_rock_{ri}")
-        sr.render_data["mesh"] = sphere_mesh
-        sr.render_data["material"] = dark_rock_mat
-        sr.translation = np.array([r * np.cos(a), -0.08, r * np.sin(a)], np.float32)
-        sr.scale = np.array([0.10, 0.06, 0.08], np.float32)
-        lh.add_child(sr)
+    # === GLB LIGHTHOUSE ===
+    glb_lh = urenderer.geometry.mesh.load_glb("assets/external_meshes/low_poly_lighthouse.glb")
+    glb_lh.translation = np.array([0.75, 0.35, 0.75], np.float32)
+    glb_lh.scale = np.array([0.225, 0.225, 0.225], np.float32)
+    glb_lh.rotation = np.array([0, -70, 0], np.float32)
+    nodes = deque([glb_lh])
+    while nodes:
+        n = nodes.pop()
+        if "base" in n.name:
+            n.render_data["material"] = red_mat
+        elif "tower" in n.name:
+            n.render_data["material"] = white_mat
+        elif "door" in n.name:
+            n.render_data["material"] = door_mat
+        elif "raling" in n.name or "ladder" in n.name:
+            n.render_data["material"] = rail_mat
+        elif "stair" in n.name:
+            n.render_data["material"] = white_mat
+        nodes += n.children
+    scene_root.add_child(glb_lh)
 
     # === BOAT ===
     boat_root = urenderer.geometry.mesh.load_glb("assets/external_meshes/stylized_low_poly_rowboat_with_paddles.glb")
     boat_root.translation = np.array([0.7, 0.00, 0.9], np.float32)
-    boat_root.scale = np.array([0.012, 0.012, 0.012], np.float32)
+    boat_root.scale = np.array([0.013, 0.013, 0.013], np.float32)
+    boat_root.rotation = np.array([0, 30, 0], np.float32)
     nodes = deque([boat_root])
     while nodes:
         n = nodes.pop()
         n.render_data["material"] = wood_mat
         nodes += n.children
-    boat_root.callbacks = [lambda n, dt, t: setattr(n, 'translation', np.array([0.7, -0.1 + 0.005 * np.sin(1.5 * t), 0.9], np.float32))]
+    boat_root.callbacks = [update_boat]
     scene_root.add_child(boat_root)
 
     # === WATER ===
@@ -459,39 +400,6 @@ if __name__ == "__main__":
     water._water_size = 16.0
     water.callbacks = [update_water]
     scene_root.add_child(water)
-
-    # === CLOUDS ===
-    cloud_positions = [
-        (-1.8, 1, -3.0, 0.9, 0.008),
-        (0.3, 1, -3.8, 0.7, 0.012),
-        (2.2, 1, -2.5, 0.8, 0.006),
-        (-1.2, 1, -4.2, 0.6, 0.015),
-        (1.5, 1, -4.0, 0.5, 0.010),
-        (-2.5, 1, -1.5, 0.5, 0.004),
-    ]
-
-    for ci, (cx, cy, cz, cs, spd) in enumerate(cloud_positions):
-        croot = Node(f"cloud_{ci}")
-        croot.translation = np.array([cx, cy, cz], np.float32)
-        croot._cloud_speed = spd
-        croot.callbacks = [update_cloud]
-
-        parts = [
-            (0, 0, 0, 1.0),
-            (0.35, 0.06, 0.15, 0.65),
-            (-0.30, -0.04, -0.12, 0.60),
-            (0.12, 0.10, -0.28, 0.50),
-            (-0.18, -0.08, 0.30, 0.45),
-        ]
-        for pi, (ox, oy, oz, ps) in enumerate(parts):
-            p = Node(f"c{ci}_p{pi}")
-            p.render_data["mesh"] = sphere_mesh
-            p.render_data["material"] = cloud_mat
-            p.translation = np.array([ox * cs, oy * cs, oz * cs], np.float32)
-            p.scale = np.array([ps * cs * 0.32, ps * cs * 0.18, ps * cs * 0.26], np.float32)
-            croot.add_child(p)
-
-        runtime.scene.add_child(croot)
 
     # === LIGHTS ===
     sun = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
