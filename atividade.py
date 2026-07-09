@@ -28,153 +28,6 @@ def solid_material(shader, color_rgb, metallic=0.0, roughness=0.7, tiling=1.0):
     return mat
 
 
-def cylinder_body(r_bottom, r_top, height, segments):
-    verts = []
-    norms = []
-    uvs = []
-    idx = []
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        verts.append([ca * r_bottom, -height / 2, sa * r_bottom])
-        verts.append([ca * r_top, height / 2, sa * r_top])
-        n = np.array([ca, 0, sa], np.float32)
-        n /= np.linalg.norm(n)
-        norms.append(n)
-        norms.append(n)
-        uvs.append([i / segments, 0])
-        uvs.append([i / segments, 1])
-    for i in range(segments):
-        b0 = 2 * i
-        t0 = 2 * i + 1
-        b1 = 2 * ((i + 1) % segments)
-        t1 = 2 * ((i + 1) % segments) + 1
-        idx += [b0, b1, t1, t1, t0, b0]
-    return Mesh(
-        np.array(verts, np.float32),
-        np.array(idx, np.uint32),
-        np.array(uvs, np.float32),
-        normal=np.array(norms, np.float32),
-    )
-
-
-def capped_cylinder(r_bottom, r_top, height, segments):
-    all_v, all_n, all_uv = [], [], []
-    all_idx = []
-    offset = 0
-
-    # Body
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        all_v.append([ca * r_bottom, -height / 2, sa * r_bottom])
-        all_v.append([ca * r_top, height / 2, sa * r_top])
-        n = np.array([ca, 0, sa], np.float32)
-        n /= np.linalg.norm(n)
-        all_n.append(n)
-        all_n.append(n)
-        all_uv.append([i / segments, 0])
-        all_uv.append([i / segments, 1])
-    for i in range(segments):
-        b0 = offset + 2 * i
-        t0 = offset + 2 * i + 1
-        b1 = offset + 2 * ((i + 1) % segments)
-        t1 = offset + 2 * ((i + 1) % segments) + 1
-        all_idx += [b0, b1, t1, t1, t0, b0]
-    offset += 2 * segments
-
-    # Bottom cap
-    all_v.append([0, -height / 2, 0])
-    all_n.append([0, -1, 0])
-    all_uv.append([0.5, 0.5])
-    c = offset
-    offset += 1
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        all_v.append([ca * r_bottom, -height / 2, sa * r_bottom])
-        all_n.append([0, -1, 0])
-        all_uv.append([0.5 + 0.5 * ca, 0.5 + 0.5 * sa])
-    for i in range(segments):
-        all_idx += [c, offset + 1 + i, offset + 1 + (i + 1) % segments]
-    offset += 1 + segments
-
-    # Top cap
-    all_v.append([0, height / 2, 0])
-    all_n.append([0, 1, 0])
-    all_uv.append([0.5, 0.5])
-    c = offset
-    offset += 1
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        all_v.append([ca * r_top, height / 2, sa * r_top])
-        all_n.append([0, 1, 0])
-        all_uv.append([0.5 + 0.5 * ca, 0.5 + 0.5 * sa])
-    for i in range(segments):
-        all_idx += [c, offset + 1 + (i + 1) % segments, offset + 1 + i]
-    offset += 1 + segments
-
-    return Mesh(
-        np.array(all_v, np.float32),
-        np.array(all_idx, np.uint32),
-        np.array(all_uv, np.float32),
-        normal=np.array(all_n, np.float32),
-    )
-
-
-def cone_mesh(radius, height, segments):
-    all_v, all_n, all_uv = [], [], []
-    all_idx = []
-    offset = 0
-
-    # Apex
-    all_v.append([0, height / 2, 0])
-    all_n.append([0, 1, 0])
-    all_uv.append([0.5, 1.0])
-    offset += 1
-
-    # Base ring (sides)
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        all_v.append([ca * radius, -height / 2, sa * radius])
-        n = np.array([ca, radius / height, sa], np.float32)
-        n /= np.linalg.norm(n)
-        all_n.append(n)
-        all_uv.append([i / segments, 0])
-
-    for i in range(segments):
-        v1 = offset + i
-        v2 = offset + (i + 1) % segments
-        all_idx += [0, v1, v2]
-
-    offset += segments
-
-    # Base cap
-    all_v.append([0, -height / 2, 0])
-    all_n.append([0, -1, 0])
-    all_uv.append([0.5, 0.5])
-    c = offset
-    offset += 1
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        all_v.append([ca * radius, -height / 2, sa * radius])
-        all_n.append([0, -1, 0])
-        all_uv.append([0.5 + 0.5 * ca, 0.5 + 0.5 * sa])
-    for i in range(segments):
-        all_idx += [c, offset + 1 + i, offset + 1 + (i + 1) % segments]
-    offset += 1 + segments
-
-    return Mesh(
-        np.array(all_v, np.float32),
-        np.array(all_idx, np.uint32),
-        np.array(all_uv, np.float32),
-        normal=np.array(all_n, np.float32),
-    )
-
-
 def grid_mesh(size, subdiv):
     half = size / 2
     verts, uv, norms = [], [], []
@@ -233,11 +86,6 @@ def update_water(node, dt, t):
     mesh.vertex = verts.flatten()
 
 
-
-def rotate_beam(node, dt, t):
-    node.rotation[1] = (t * 60) % 360
-
-
 def update_boat(node, dt, t):
     node.translation = np.array([0.7, -0.12 + 0.005 * np.sin(1.5 * t), 1], np.float32)
     node.rotation[0] = 5 * np.sin(1.0 * t)
@@ -260,32 +108,6 @@ def create_sky_gradient():
             c = mid * (1 - u) + horizon * u
         grad[i, 0] = (np.clip(c, 0, 1) * 255).astype(np.uint8)
     return grad
-
-
-def beam_mesh(length, radius, segments):
-    verts = [[0, 0, 0]]
-    uvs = [[0.5, 1.0]]
-    slope = length / np.sqrt(length ** 2 + radius ** 2)
-    radial = radius / np.sqrt(length ** 2 + radius ** 2)
-    norms = [np.array([1, 0, 0], np.float32)]
-    for i in range(segments):
-        a = 2 * np.pi * i / segments
-        ca, sa = np.cos(a), np.sin(a)
-        verts.append([length, ca * radius, sa * radius])
-        norms.append(np.array([slope, ca * radial, sa * radial], np.float32))
-        uvs.append([i / segments, 0])
-    idx = []
-    for i in range(segments):
-        v1 = 1 + i
-        v2 = 1 + (i + 1) % segments
-        idx += [0, v1, v2]
-    return Mesh(
-        np.array(verts, np.float32),
-        np.array(idx, np.uint32),
-        np.array(uvs, np.float32),
-        normal=np.array(norms, np.float32),
-    )
-
 
 NOME_DA_CENA = "lighthouse_scene"
 
