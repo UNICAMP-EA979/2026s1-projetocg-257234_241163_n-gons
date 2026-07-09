@@ -67,7 +67,7 @@ A escolha do estilo low-poly é em parte estilística e em parte pragmática, de
 Entre os elementos que pretendemos incluir estão:
 - Um oceano, implementado com um mesh grid que se moverá simulando ondas;
 - Uma pequena ilha de rochas no meio do oceano;
-- Um farol marítmo nessa ilha, com uma lanterna que gira e emite luz.
+- Um farol marítmo nessa ilha, com uma lanterna que gira e emite luz;
 - Um pequeno barco de madeira atracado na ilha, que se moverá com as ondas.
 
 
