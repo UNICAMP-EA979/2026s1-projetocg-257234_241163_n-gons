@@ -3,6 +3,8 @@ from collections import deque
 import numpy as np
 import urenderer
 from OpenGL import GL
+from pygltflib import GLTF2
+from urenderer.geometry.mesh.glb import _parse_node
 from urenderer.node import Node
 from urenderer.renderer.opengl import Material, Shader, Texture
 
@@ -26,7 +28,7 @@ if __name__ == "__main__":
     cube_mesh = urenderer.geometry.mesh.get_mesh_cube()
 
     scene_root = Node("scene")
-    scene_root.translation = np.array([0, -0.25, -6.5], np.float32)
+    scene_root.translation = np.array([0, -0.25, -6], np.float32)
     scene_root.rotation = np.array([12, 0, 0], np.float32)
     runtime.scene.add_child(scene_root)
 
@@ -65,27 +67,23 @@ if __name__ == "__main__":
     rock3.translation = np.array([0.6, -0.05, -0.4], np.float32)
     scene_root.add_child(rock3)
 
-    # === GLB LIGHTHOUSE ===
-    glb_lh = urenderer.geometry.mesh.load_glb("assets/external_meshes/low_poly_lighthouse.glb")
-    glb_lh.translation = np.array([0.75, 0.35, 0.75], np.float32)
-    glb_lh.scale = np.array([0.25, 0.25, 0.25], np.float32)
-    glb_lh.rotation = np.array([0, -70, 0], np.float32)
+    # === LIGHTHOUSE ===
+    lighthouse = urenderer.geometry.mesh.load_glb("assets/external_meshes/low_poly_lighthouse.glb")
+    lighthouse.translation = np.array([0.75, 0.35, 0.75], np.float32)
+    lighthouse.scale = np.array([0.25, 0.25, 0.25], np.float32)
+    lighthouse.rotation = np.array([0, -70, 0], np.float32)
 
-    beacon = urenderer.node.Light(urenderer.node.LightType.POINT)
-    beacon.light_color = np.array([1.0, 0.85, 0], np.float32)
-    beacon.translation = np.array([1.0, 0, 0.4], np.float32)
-    beacon.scale = np.array([0.25, 0.25, 0.25], np.float32)
-    beacon.light_reference_distance = 2.5
-    beacon.callbacks = [update_beacon]
+    beacon1 = urenderer.node.Light(urenderer.node.LightType.POINT)
+    beacon1.light_color = np.array([1.0, 0.85, 0], np.float32)
+    beacon1.translation = np.array([1.0, 0, 0.4], np.float32)
+    beacon1.scale = np.array([0.25, 0.25, 0.25], np.float32)
+    beacon1.light_reference_distance = 2.5
+    beacon1.callbacks = [update_beacon]
 
-    beacon2 = urenderer.node.Light(urenderer.node.LightType.POINT)
-    beacon2.light_color = np.array([1.0, 0.85, 0], np.float32)
-    beacon2.translation = np.array([-1.0, 0, 0.4], np.float32)
-    beacon2.scale = np.array([0.25, 0.25, 0.25], np.float32)
-    beacon2.light_reference_distance = 2.5
-    beacon2.callbacks = [update_beacon]
+    beacon2 = beacon1.clone()
+    beacon2.translation[0] = -1.0
 
-    nodes = deque([glb_lh])
+    nodes = deque([lighthouse])
     while nodes:
         n = nodes.pop()
         if "base" in n.name:
@@ -93,7 +91,7 @@ if __name__ == "__main__":
         elif n.name == "top tower_Material_0":
             n.render_data["material"] = mats["white_mat"]
         elif n.name == "top tower":
-            n.add_child(beacon)
+            n.add_child(beacon1)
             n.add_child(beacon2)
             n.callbacks.append(lambda node, dt, t: setattr(node, "rotation", np.array([-90, 30 * t, 0], np.float32)))
         elif "door" in n.name:
@@ -103,7 +101,7 @@ if __name__ == "__main__":
         elif "stair" in n.name:
             n.render_data["material"] = mats["white_mat"]
         nodes += n.children
-    scene_root.add_child(glb_lh)
+    scene_root.add_child(lighthouse)
 
     # === BOAT ===
     boat_root = urenderer.geometry.mesh.load_glb("assets/external_meshes/stylized_low_poly_rowboat_with_paddles.glb")
@@ -117,6 +115,26 @@ if __name__ == "__main__":
         nodes += n.children
     boat_root.callbacks = [update_boat]
     scene_root.add_child(boat_root)
+
+    # === DOLPHIN ===
+    dolphin_gltf = GLTF2().load("assets/external_meshes/low_poly_dolphin.glb")
+    mesh_node = _parse_node(dolphin_gltf, 4)
+    mesh_node.render_data["material"] = mats["gray_dolphin_mat"]
+    mesh_node.scale = np.array([0.2, 0.2, 0.2], np.float32)
+    mesh_node.translation = np.array([4, 1, 2.5], np.float32)
+    mesh_node.rotation = np.array([0, 90, 0], np.float32)
+    mesh_node._phase = 0.0
+    mesh_node._period = 4.0
+    mesh_node.callbacks = [update_dolphin]
+    scene_root.add_child(mesh_node)
+
+    # debug red sphere
+    # debug_sphere = Node("debug_sphere")
+    # debug_sphere.render_data["mesh"] = sphere_mesh
+    # debug_sphere.render_data["material"] = mats["red_mat"]
+    # debug_sphere.scale = np.array([0.1, 0.1, 0.1], np.float32)
+    # debug_sphere.translation = np.array([1, 1, 3], np.float32)
+    # scene_root.add_child(debug_sphere)
 
     # === WATER ===
     water_mesh = grid_mesh(16.0, 24)
@@ -139,7 +157,7 @@ if __name__ == "__main__":
     video = True
     if video:
         runtime.loop(n=4000, capture=np.arange(0, 4000, 40, dtype=np.int32))
-        urenderer.utils.image_to_video(NOME_DA_CENA, fps=30)
+        urenderer.utils.image_to_video(NOME_DA_CENA, fps=60)
         urenderer.utils.clear_workdir(NOME_DA_CENA, image_only=True)
     else:
         runtime.loop(capture=[1])

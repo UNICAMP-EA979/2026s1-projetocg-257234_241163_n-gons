@@ -33,4 +33,5 @@ def create_materials(shader):
         "rail_mat": solid_material(shader, (0.25, 0.25, 0.25), roughness=0.3, metallic=0.5),
         "dark_rock_mat": solid_material(shader, (0.38, 0.34, 0.30), roughness=0.9),
         "wood_mat": solid_material(shader, (0.55, 0.33, 0.15), roughness=0.6),
+        "gray_dolphin_mat": solid_material(shader, (0.55, 0.55, 0.58), roughness=0.7),
     }

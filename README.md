@@ -69,10 +69,11 @@ Entre os elementos que pretendemos incluir estão:
 - Uma pequena ilha de rochas no meio do oceano;
 - Um farol marítmo nessa ilha, com uma lanterna que gira e emite luz;
 - Um pequeno barco de madeira atracado na ilha, que se moverá com as ondas.
-
+- Um golfinho que nada e pula aleatoriamente para fora da água.
 
 ## Assets utilizados
 
 - Stylized Low Poly Rowboat with Paddles: CC Attribution (https://sketchfab.com/3d-models/stylized-low-poly-rowboat-with-paddles-f2c35c716f32474e96cce3625073e6b8)
 - low poly island with light house (just the lighthouse): CC Attribution (https://sketchfab.com/3d-models/low-poly-island-with-light-house-180421c7421e458a84de2f7f545afc6b)
+- Low Poly Dolphin: CC Attribution (https://sketchfab.com/3d-models/low-poly-dolphin-3a7112396c7642df9201094a9b3634b0)
 - `Nome do Asset`: `Licensa` (`Link`)
