@@ -132,7 +132,7 @@ if __name__ == "__main__":
     red_mat = solid_material(shader, (0.85, 0.15, 0.10), roughness=0.5)
     roof_mat = solid_material(shader, (0.65, 0.08, 0.04), roughness=0.4)
     rock_mat = solid_material(shader, (0.55, 0.50, 0.44), roughness=0.9)
-    water_mat = solid_material(shader, (0.06, 0.22, 0.30), roughness=0.3, metallic=0.05)
+    water_mat = solid_material(shader, (0.03, 0.08, 0.12), roughness=0.4, metallic=0.05)
     door_mat = solid_material(shader, (0.28, 0.18, 0.08), roughness=0.7)
     rail_mat = solid_material(shader, (0.25, 0.25, 0.25), roughness=0.3, metallic=0.5)
     dark_rock_mat = solid_material(shader, (0.38, 0.34, 0.30), roughness=0.9)
