@@ -55,14 +55,24 @@ O projeto será avaliado segundo:
 
 ## Descrição da cena
 
-Descreva a cena que implementaram:
+A ideia será implementar uma ceno no estílo low-poly de um farol marítmo à noite. O objetivo é buscar passar o mesmo sentimento da seguinte foto:
 
-`Descrição`
+![](img/lighthouse-night.jpg)
 
-(Dica: para incluir imagens, utilize ![](Caminho da imagem))
+
+A escolha do estilo low-poly é em parte estilística e em parte pragmática, de modo a trabalhar com as limitações do renderizador e não contra elas. Nos inspiramos bastante no estilo de cenas como:
+
+![](img/low-poly.jpeg)
+
+Entre os elementos que pretendemos incluir estão:
+- Um oceano, implementado com um mesh grid que se moverá simulando ondas;
+- Uma pequena ilha de rochas no meio do oceano;
+- Um farol marítmo nessa ilha, com uma lanterna que gira e emite luz.
+- Um pequeno barco de madeira atracado na ilha, que se moverá com as ondas.
+
 
 ## Assets utilizados
 
-Para todo asset que tiver baixado da internet, coloque a referência dele (segundo eterminado por sua licensa):
-
+- Stylized Low Poly Rowboat with Paddles: CC Attribution (https://sketchfab.com/3d-models/stylized-low-poly-rowboat-with-paddles-f2c35c716f32474e96cce3625073e6b8)
+- low poly island with light house (just the lighthouse): CC Attribution (https://sketchfab.com/3d-models/low-poly-island-with-light-house-180421c7421e458a84de2f7f545afc6b)
 - `Nome do Asset`: `Licensa` (`Link`)
