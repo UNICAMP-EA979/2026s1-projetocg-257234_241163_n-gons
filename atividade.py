@@ -229,7 +229,7 @@ def update_water(node, dt, t):
             idx = z * (sd + 1) + x
             vx = -half + sz * x / sd
             vz = -half + sz * z / sd
-            verts[idx, 1] = 0.03 * np.sin(2.5 * vx + 3.5 * t) + 0.025 * np.sin(1.8 * vz + 2.2 * t + 1.0)
+            verts[idx, 1] = 0.02 * np.sin(2.5 * vx + 0.5 * t) + 0.025 * np.sin(1.8 * vz + 1 * t + 1.0)
     mesh.vertex = verts.flatten()
 
 
@@ -306,18 +306,8 @@ if __name__ == "__main__":
     rail_mat = solid_material(shader, (0.25, 0.25, 0.25), roughness=0.3, metallic=0.5)
     dark_rock_mat = solid_material(shader, (0.38, 0.34, 0.30), roughness=0.9)
     beam_mat = solid_material(shader, (1.0, 0.85, 0.2), roughness=0.1, metallic=0.0)
-
-    blackTextureR = Texture(np.zeros((1, 1), np.uint8), GL.GL_RED, GL.GL_R8)
-
-    brick_color = Texture.load_file("assets/external_materials/Bricks104_1K-JPG/Bricks104_1K-JPG_Color.jpg",
-                                    srgb=True, drop_alpha=True)
-    brick_roughness = Texture.load_file("assets/external_materials/Bricks104_1K-JPG/Bricks104_1K-JPG_Roughness.jpg",
-                                        drop_alpha=True)
-    brick_mat = Material(shader)
-    brick_mat.set_texture(0, "baseColorTexture", brick_color)
-    brick_mat.set_texture(1, "metallicTexture", blackTextureR)
-    brick_mat.set_texture(2, "roughnessTexture", brick_roughness)
-    brick_mat.set_uniform("tiling", 2.0)
+    brick_mat = solid_material(shader, (0.78, 0.32, 0.18), roughness=0.7)
+    wood_mat = solid_material(shader, (0.55, 0.33, 0.15), roughness=0.6)
 
     sphere_mesh = urenderer.geometry.mesh.get_mesh_sphere()
     cube_mesh = urenderer.geometry.mesh.get_mesh_cube()
@@ -454,9 +444,9 @@ if __name__ == "__main__":
     nodes = deque([boat_root])
     while nodes:
         n = nodes.pop()
-        n.render_data["material"] = white_mat
+        n.render_data["material"] = wood_mat
         nodes += n.children
-    boat_root.callbacks = [lambda n, dt, t: setattr(n, 'translation', np.array([0.7, 0.0 - 0.015 * np.sin(2.5 * t), 0.9]))]
+    boat_root.callbacks = [lambda n, dt, t: setattr(n, 'translation', np.array([0.7, -0.1 + 0.005 * np.sin(1.5 * t), 0.9], np.float32))]
     scene_root.add_child(boat_root)
 
     # === WATER ===
