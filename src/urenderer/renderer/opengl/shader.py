@@ -131,7 +131,6 @@ class Shader:
         ## SEU CÓDIGO AQUI ######################################################
         # Usa o programa compilado e linkado anteriormente no contexto atual
         GL.glUseProgram(self.shader_program)
-        #########################################################################
 
     def _get_uniform_location(self, name: str) -> int:
         '''

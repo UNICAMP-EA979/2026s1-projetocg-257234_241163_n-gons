@@ -51,23 +51,18 @@ class OpenGLRenderer(Renderer):
         ## SEU CÓDIGO AQUI ######################################################
         # Inicializa o GLFW, core profile e OpenGL 3.3
         glfw.init()
-
-        # Força versões do OpenGL
         glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
         glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
-        # Usa apenas Core profile
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+
+        glfw.window_hint(glfw.SRGB_CAPABLE, glfw.TRUE)
         #########################################################################
 
         ## SEU CÓDIGO AQUI ######################################################
         # Cria a janela, associando ela ao contexto
         # e configurando o tamanho dela no OpenGl
-
-        window = glfw.create_window(
-            screen_width, screen_height, "urenderer", None, None)
-
+        window = glfw.create_window(screen_width, screen_height, "URenderer", None, None)
         glfw.make_context_current(window)
-
         GL.glViewport(0, 0, screen_width, screen_height)
         #########################################################################
 
@@ -113,19 +108,15 @@ class OpenGLRenderer(Renderer):
         self._view_matrix = view_matrix
         self._projection_matrix = camera.projection_matrix
         self._name = name
-        self._lights: list[dict[str, Light | np.ndarray]] = []
+        self._lights: list[dict[str, Any]] = []
 
         glfw.set_window_title(self._window, name)
 
         ## SEU CÓDIGO AQUI ######################################################
         # Limpe os buffers de cor e profundidade (COLOR_BUFFER e DEPTH_BUFFER)
         # Para o de cor, utilize a cor self.background_color
-
-        GL.glClearColor(self.background_color[0],
-                        self.background_color[1],
-                        self.background_color[2],
-                        self.background_color[3])
-        GL.glClear(int(GL.GL_COLOR_BUFFER_BIT) | int(GL.GL_DEPTH_BUFFER_BIT))
+        GL.glClearColor(*self.background_color)
+        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         #########################################################################
 
     def validate(self, node: Node, model_transformation: np.ndarray) -> bool:
@@ -141,13 +132,25 @@ class OpenGLRenderer(Renderer):
             bool: True if the node is valid
         '''
         if isinstance(node, Light):
-            dummy = np.zeros(4)
-            dummy[-1] = 1
-            position = model_transformation@dummy
-            position = position[:3].astype(np.float32)
+            # Extração da posição global
+            position = model_transformation[:3, 3].astype(np.float32)
 
-            self._lights.append(
-                {"node": node, "position": position})
+            # Em OpenGL, a luz "olha" para o eixo -Z local.
+            # Multiplicamos a rotação por esse vetor para obter a direção global correta.
+            forward_local = np.array([0.0, 0.0, -1.0, 0.0], dtype=np.float32)
+            direction = (model_transformation @ forward_local)[:3].astype(np.float32)
+
+            # Normaliza por segurança
+            norm = np.linalg.norm(direction)
+            if norm > 1e-6:
+                direction /= norm
+
+            self._lights.append({
+                "node": node, 
+                "position": position,
+                "direction": direction
+            })
+            
         return ("material" in node.render_data and
                 "mesh" in node.render_data)
 
@@ -173,13 +176,9 @@ class OpenGLRenderer(Renderer):
         # uniform para todo uso do material.
         #
         # Atente-se que os valores precisam ser convertidos para np.float32
-
-        material.shader.set_uniform(
-            "modelTransformation", model_transformation.astype(np.float32))
-        material.shader.set_uniform(
-            "viewTransformation", self._view_matrix.astype(np.float32))
-        material.shader.set_uniform(
-            "projectionMatrix", self._projection_matrix.astype(np.float32))
+        material.shader.set_uniform("modelTransformation", model_transformation.astype(np.float32))
+        material.shader.set_uniform("viewTransformation", self._view_matrix.astype(np.float32))
+        material.shader.set_uniform("projectionMatrix", self._projection_matrix.astype(np.float32))
         #########################################################################
 
         ## SEU CÓDIGO AQUI ######################################################
@@ -190,31 +189,39 @@ class OpenGLRenderer(Renderer):
         #
         # Utilize o método set_uniform do shader
 
-        for i, light_info in enumerate(self._lights):
-            light = cast(Light, light_info["node"])
-            light_position = cast(np.ndarray, light_info["position"])
-
-            material.shader.set_uniform(
-                f"lights[{i}].type", light.light_type.value)
-            material.shader.set_uniform(
-                f"lights[{i}].color", light.light_color)
-            material.shader.set_uniform(
-                f"lights[{i}].intensity", light.light_intensity)
-            material.shader.set_uniform(
-                f"lights[{i}].direction", light.light_direction)
-            material.shader.set_uniform(
-                f"lights[{i}].position", light_position)
-            material.shader.set_uniform(
-                f"lights[{i}].reference_distance", light.light_reference_distance)
-
+        MAX_LIGHTS = 10
+        for i in range(MAX_LIGHTS):
+            if i < len(self._lights):
+                light_info = self._lights[i]
+                light = cast(Light, light_info["node"])
+                light_position = cast(np.ndarray, light_info["position"])
+                
+                # O código do seu colega revela as propriedades exatas da classe Light
+                light_color = cast(np.ndarray, light.light_color)
+                
+                # Trata o tipo, verificando se é um Enum ou int direto
+                l_type = light.light_type
+                light_type = l_type.value if hasattr(l_type, 'value') else l_type
+                
+                light_intensity = float(light.light_intensity)
+                light_direction = cast(np.ndarray, light.light_direction)
+                light_ref_distance = float(light.light_reference_distance)
+                
+                material.shader.set_uniform(f"lights[{i}].position", light_position.astype(np.float32))
+                material.shader.set_uniform(f"lights[{i}].color", light_color.astype(np.float32))
+                material.shader.set_uniform(f"lights[{i}].type", int(light_type))
+                material.shader.set_uniform(f"lights[{i}].intensity", light_intensity)
+                material.shader.set_uniform(f"lights[{i}].direction", light_direction.astype(np.float32))
+                material.shader.set_uniform(f"lights[{i}].reference_distance", light_ref_distance)
+            else:
+                material.shader.set_uniform(f"lights[{i}].type", 0)
         #########################################################################
 
         ## SEU CÓDIGO AQUI ######################################################
         # Defina a uniform ambientColor para self.ambient_color
         #
         # Utilize o método set_uniform do shader
-
-        material.shader.set_uniform("ambientColor", self.ambient_color)
+        material.shader.set_uniform("ambientColor", self.ambient_color.astype(np.float32))
         #########################################################################
 
         mesh.draw()

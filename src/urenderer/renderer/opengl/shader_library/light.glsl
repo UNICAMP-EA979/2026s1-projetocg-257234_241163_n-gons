@@ -10,9 +10,9 @@ struct Light
     int type;
     vec3 color;
     float intensity;
-    vec3 direction; //Only directional
-    vec3 position; //Only point
-    float reference_distance; //Only point
+    vec3 direction; // Only directional
+    vec3 position; // Only point
+    float reference_distance; // Only point
 };
 
 // Calcula a atenuação da luz
@@ -20,30 +20,31 @@ float computeLightAttenuation(Light light, vec3 position)
 {
     if(light.type == LIGHT_DIRECTIONAL)
     {
-        return 1.0;
+        return light.intensity;
     }
-    if(light.type == LIGHT_POINT)
+    else
     {
-        float distance = length(position - light.position);
-        return pow(light.reference_distance / max(distance, R_MIN), 2);
+        // Distância do fragmento até a luz
+        float r = distance(light.position, position);
+        
+        // Lei do inverso do quadrado
+        return light.intensity * pow(light.reference_distance / max(r, R_MIN), 2.0);
     }
 
-    return 0.0;
 }
 
-//Calcula a direção da luz
+// Calcula a direção da luz
 vec3 computeLightDirection(Light light, vec3 position)
 {
     if(light.type == LIGHT_DIRECTIONAL)
     {
-        return light.direction;
+        return normalize(light.direction);
     }
-    if(light.type == LIGHT_POINT)
+    else
     {
+        // Vetor que aponta do fragmento para a luz pontual
         return normalize(light.position - position);
     }
-
-    return vec3(1.0, 0.0, 1.0);
 }
 
 #define LIBRARY_LIGHT

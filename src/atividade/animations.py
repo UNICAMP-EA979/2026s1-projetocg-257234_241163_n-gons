@@ -21,7 +21,7 @@ def update_beacon(node: Node, dt: float, t: float):
     dist = min(angle_deg, 360 - angle_deg, abs(angle_deg - 180))
     raw = np.clip(1.0 - (dist / 70.0) ** 1.5, 0.0, 1.0)
     intensity = raw * np.exp(-(dist ** 2) / (2.0 * 50.0 ** 2))
-    node.light_intensity = float(intensity * 3.0)
+    node.light_intensity = float(intensity * 1.5)
 
 
 def update_boat(node: Node, dt: float, t: float):
