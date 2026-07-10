@@ -157,7 +157,7 @@ if __name__ == "__main__":
     video = True
     if video:
         runtime.loop(n=4000, capture=np.arange(0, 4000, 40, dtype=np.int32))
-        urenderer.utils.image_to_video(NOME_DA_CENA, fps=60)
+        urenderer.utils.image_to_video(NOME_DA_CENA, fps=24)
         urenderer.utils.clear_workdir(NOME_DA_CENA, image_only=True)
     else:
         runtime.loop(capture=[1])
