@@ -3,171 +3,161 @@ from collections import deque
 import numpy as np
 import urenderer
 from OpenGL import GL
+from pygltflib import GLTF2
+from urenderer.geometry.mesh.glb import _parse_node
 from urenderer.node import Node
-from urenderer.renderer.opengl import Material, Texture
+from urenderer.renderer.opengl import Material, Shader, Texture
+
+from src.atividade import *
 
 
-def update_rotation(node: Node, deltaTime: float, time_since_start: float) -> None:
-
-    time_since_start /= 10
-    t = time_since_start - int(time_since_start)
-
-    node.rotation[0] = 0
-    node.rotation[1] = 360*t
-    node.rotation[2] = 0
-
-
-def update_scale(node: Node, deltaTime: float, time_since_start: float) -> None:
-    scale = np.sin(5*time_since_start)/10
-    scale += 0.8
-
-    node.scale = scale * np.ones(3)
-
-
-def update_cube(node: Node, deltaTime: float, time_since_start: float) -> None:
-
-    # Posição = dv/dt -> posição_t = posição_{t-1}+DeltaT*v
-    center: np.array = node.center
-    position = node.translation
-
-    r = position-center
-
-    r_2d = np.array([r[0], r[2]])
-    v_dir = np.array([-r_2d[1], r_2d[0]])
-
-    v = v_dir*node.angular_velocity
-    v = np.array([v[0], 0.0, v[1]])
-
-    node.translation += deltaTime*v
-
-    # Rotação = f(tempo)
-    time_since_start /= 10
-    t = time_since_start - int(time_since_start)
-    node.rotation[0] = 0
-    node.rotation[1] = -360*node.angular_velocity*t
-    node.rotation[2] = 0
-
-
-# Podemos dar um nome a cena
-NOME_DA_CENA = "minha_cena"
+NOME_DA_CENA = "lighthouse_scene"
 
 if __name__ == "__main__":
     urenderer.utils.clear_workdir(NOME_DA_CENA)
     renderer = urenderer.renderer.OpenGLRenderer(1920, 1080)
-    renderer.background_color = np.array([0, 0, 0, 1], np.float32)
-    runtime = urenderer.application.Runtime(
-        renderer, name=NOME_DA_CENA)
+    renderer.background_color = np.array([0.05, 0.08, 0.25, 1.0], np.float32)
+    renderer.ambient_color = np.array([0.15, 0.12, 0.18], dtype=np.float32)
+    runtime = urenderer.application.Runtime(renderer, name=NOME_DA_CENA)
+    runtime.camera.vertical_fov = 45.0
 
-    # Configuramos a luz ambiente da cena
-    renderer.ambient_color = np.array([0.1, 0.1, 0.1], dtype=np.float32)
+    shader = Shader("assets/vertex.vs", "assets/05-fragment.fs")
+    mats = create_materials(shader)
 
-    # Carregamos o shader e texturas
-    shader = urenderer.renderer.Shader(
-        "assets/vertex.vs", "assets/05-fragment.fs")
+    sphere_mesh = urenderer.geometry.mesh.get_mesh_sphere()
+    cube_mesh = urenderer.geometry.mesh.get_mesh_cube()
 
-    whiteTextureR = Texture(255*np.ones((1, 1), np.uint8), GL.GL_RED, GL.GL_R8)
-    blackTextureR = Texture(np.zeros((1, 1), np.uint8), GL.GL_RED, GL.GL_R8)
+    scene_root = Node("scene")
+    scene_root.translation = np.array([0, -0.25, -6], np.float32)
+    scene_root.rotation = np.array([12, 0, 0], np.float32)
+    runtime.scene.add_child(scene_root)
 
-    whiteTexture = Texture(255*np.ones((1, 1, 3), np.uint8),
-                           GL.GL_RGB, GL.GL_RGB)
-    blackTexture = Texture(np.zeros((1, 1, 3), np.uint8),
-                           GL.GL_RGB, GL.GL_RGB)
+    # === SKY DOME ===
+    sky_shader = Shader("assets/sky.vs", "assets/sky.fs")
+    sky_grad = create_sky_gradient()
+    sky_tex = Texture(sky_grad, GL.GL_RGB, GL.GL_RGB)
+    sky_mat = Material(sky_shader)
+    sky_mat.set_texture(0, "skyTexture", sky_tex)
+    sky_dome = Node("sky")
+    sky_dome.render_data["mesh"] = sphere_mesh
+    sky_dome.render_data["material"] = sky_mat
+    sky_dome.scale = np.array([80, 80, 80], np.float32)
+    runtime.scene.add_child(sky_dome)
 
-    starrySkyTexture = Texture.load_file("assets/Blue-universe-956981.jpg",
-                                         srgb=True, drop_alpha=True)
+    # === ISLAND ===
+    rock = rock_mesh(2)
+    island = Node("island")
+    island.render_data["mesh"] = rock
+    island.render_data["material"] = mats["rock_mat"]
+    island.scale = np.array([1.4, 0.5, 1.2], np.float32)
+    island.translation = np.array([0, 0, 0], np.float32)
+    scene_root.add_child(island)
 
-    rockBasecolor = Texture.load_file("assets/Rock035_1K-JPG/Rock035_1K-JPG_Color.jpg",
-                                      srgb=True, drop_alpha=True)
-    rockRoughness = Texture.load_file("assets/Rock035_1K-JPG/Rock035_1K-JPG_Roughness.jpg",
-                                      drop_alpha=True)
+    rock2 = Node("rock_side")
+    rock2.render_data["mesh"] = rock
+    rock2.render_data["material"] = mats["dark_rock_mat"]
+    rock2.scale = np.array([1.0, 0.3, 0.8], np.float32)
+    rock2.translation = np.array([-0.7, -0.08, 0.5], np.float32)
+    scene_root.add_child(rock2)
 
-    materialBasic = Material(shader)
-    materialBasic.set_texture(0, "baseColorTexture", whiteTexture)
-    materialBasic.set_texture(1, "metallicTexture", blackTextureR)
-    materialBasic.set_texture(2, "roughnessTexture", whiteTextureR)
+    rock3 = Node("rock_back")
+    rock3.render_data["mesh"] = rock
+    rock3.render_data["material"] = mats["dark_rock_mat"]
+    rock3.scale = np.array([0.9, 0.35, 0.7], np.float32)
+    rock3.translation = np.array([0.6, -0.05, -0.4], np.float32)
+    scene_root.add_child(rock3)
 
-    materialBackground = Material(shader)
-    materialBackground.set_texture(0, "baseColorTexture", starrySkyTexture)
-    materialBackground.set_texture(1, "metallicTexture", blackTextureR)
-    materialBackground.set_texture(2, "roughnessTexture", whiteTextureR)
-    materialBackground.set_uniform("tiling", 10.0)
+    # === LIGHTHOUSE ===
+    lighthouse = urenderer.geometry.mesh.load_glb("assets/external_meshes/low_poly_lighthouse.glb")
+    lighthouse.translation = np.array([0.75, 0.35, 0.75], np.float32)
+    lighthouse.scale = np.array([0.25, 0.25, 0.25], np.float32)
+    lighthouse.rotation = np.array([0, -70, 0], np.float32)
 
-    materialCube = Material(shader)
-    materialCube.set_texture(0, "baseColorTexture", rockBasecolor)
-    materialCube.set_texture(1, "metallicTexture", blackTextureR)
-    materialCube.set_texture(2, "roughnessTexture", rockRoughness)
+    beacon1 = urenderer.node.Light(urenderer.node.LightType.POINT)
+    beacon1.light_color = np.array([1.0, 0.85, 0], np.float32)
+    beacon1.translation = np.array([1.0, 0, 0.4], np.float32)
+    beacon1.scale = np.array([0.25, 0.25, 0.25], np.float32)
+    beacon1.light_reference_distance = 2.5
+    beacon1.callbacks = [update_beacon]
 
-    # Carregamos a cena (ou poderia ser criada com primitivas)
-    glb_root = urenderer.geometry.mesh.load_glb("assets/CenaExemplo.glb")
+    beacon2 = beacon1.clone()
+    beacon2.translation[0] = -1.0
 
-    nodes = deque([glb_root])
-    while len(nodes) != 0:
-        node = nodes.pop()
-        nodes += node.children
+    nodes = deque([lighthouse])
+    while nodes:
+        n = nodes.pop()
+        if "base" in n.name:
+            n.render_data["material"] = mats["red_mat"]
+        elif n.name == "top tower_Material_0":
+            n.render_data["material"] = mats["white_mat"]
+        elif n.name == "top tower":
+            n.add_child(beacon1)
+            n.add_child(beacon2)
+            n.callbacks.append(lambda node, dt, t: setattr(node, "rotation", np.array([-90, 30 * t, 0], np.float32)))
+        elif "door" in n.name:
+            n.render_data["material"] = mats["door_mat"]
+        elif "raling" in n.name or "ladder" in n.name:
+            n.render_data["material"] = mats["rail_mat"]
+        elif "stair" in n.name:
+            n.render_data["material"] = mats["white_mat"]
+        nodes += n.children
+    scene_root.add_child(lighthouse)
 
-        if node.name == "Icosphere":
-            center = node.translation
+    # === BOAT ===
+    boat_root = urenderer.geometry.mesh.load_glb("assets/external_meshes/stylized_low_poly_rowboat_with_paddles.glb")
+    boat_root.translation = np.array([0.7, 0.00, 0.9], np.float32)
+    boat_root.scale = np.array([0.013, 0.013, 0.013], np.float32)
+    boat_root.rotation = np.array([0, 30, 0], np.float32)
+    nodes = deque([boat_root])
+    while nodes:
+        n = nodes.pop()
+        n.render_data["material"] = mats["wood_mat"]
+        nodes += n.children
+    boat_root.callbacks = [update_boat]
+    scene_root.add_child(boat_root)
 
-    # Definimos materiais para os elementos da cena
-    nodes = deque([glb_root])
-    last_cube = None
-    while len(nodes) != 0:
-        node = nodes.pop()
-        nodes += node.children
+    # === DOLPHIN ===
+    dolphin_gltf = GLTF2().load("assets/external_meshes/low_poly_dolphin.glb")
+    mesh_node = _parse_node(dolphin_gltf, 4)
+    mesh_node.render_data["material"] = mats["gray_dolphin_mat"]
+    mesh_node.scale = np.array([0.2, 0.2, 0.2], np.float32)
+    mesh_node.translation = np.array([4, 1, 2.5], np.float32)
+    mesh_node.rotation = np.array([0, 90, 0], np.float32)
+    mesh_node._phase = 0.0
+    mesh_node._period = 4.0
+    mesh_node.callbacks = [update_dolphin]
+    scene_root.add_child(mesh_node)
 
-        node.render_data["material"] = materialBasic
+    # debug red sphere
+    # debug_sphere = Node("debug_sphere")
+    # debug_sphere.render_data["mesh"] = sphere_mesh
+    # debug_sphere.render_data["material"] = mats["red_mat"]
+    # debug_sphere.scale = np.array([0.1, 0.1, 0.1], np.float32)
+    # debug_sphere.translation = np.array([1, 1, 3], np.float32)
+    # scene_root.add_child(debug_sphere)
 
-        # Podemos definir o material pelo nome do nó, ou um padrão no nome
-        if node.name == "Plane":
-            node.render_data["material"] = materialBackground
-        if "Cube" in node.name:
-            node.render_data["material"] = materialCube
+    # === WATER ===
+    water_mesh = grid_mesh(16.0, 24)
+    water = Node("water")
+    water.render_data["mesh"] = water_mesh
+    water.render_data["material"] = mats["water_mat"]
+    water.translation = np.array([0, -0.05, 0], np.float32)
+    water.render_data["subdiv"] = 24
+    water.render_data["size"] = 16.0
+    water.callbacks = [update_water]
+    scene_root.add_child(water)
 
-        # Podemos animar os objetos da cena:
-        if node.name == "Icosphere":
-            node.callbacks = [update_rotation, update_scale]
-        if "Cube" in node.name:
-            node.center = center
-            node.angular_velocity = 0.5
-            node.callbacks = [update_cube]
-            last_cube = node
+    fill_light = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
+    fill_light.rotation = np.array([25, 110, 0], np.float64)
+    fill_light.light_color = np.array([0.7, 0.65, 1.0], np.float32)
+    fill_light.light_intensity = 0.8
+    runtime.scene.add_child(fill_light)
 
-    # Movimentamos a cena para a posição desejada
-    glb_root.translation = np.array([0, 0, -7])
-    glb_root.rotation = np.array([30, 0, 0], np.float32)
-    runtime.scene.add_child(glb_root)
-
-    # Podemos alterar propriedades da câmera
-    runtime.camera.vertical_fov = 90.0
-
-    # Adicionamos luzes a cena
-
-    light = urenderer.node.Light(urenderer.node.LightType.DIRECTIONAL)
-    light.rotation = np.array([45, 45, 45], np.float64)
-    light.light_intensity = 3.0
-    runtime.scene.add_child(light)
-
-    light2 = urenderer.node.Light(urenderer.node.LightType.POINT)
-    light2.translation = np.array([-1, -1, -6], np.float64)
-    light2.light_color = np.array([0.0, 0.0, 1.0], np.float32)
-    light2.light_intensity = 5.0
-    runtime.scene.add_child(light2)
-
-    light3 = urenderer.node.Light(urenderer.node.LightType.POINT)
-    # light3.translation = np.array([1, -1, -6], np.float64)
-    light3.light_color = np.array([1.0, 0.0, 1.0], np.float32)
-    light3.light_intensity = 5.0
-    last_cube.add_child(light3)
-
-    # Renderizamos a cena
-
+    # === RENDER ===
     video = True
     if video:
-        # Renderização salvando video
-        # Podemos ajustar os parâmetros para alterar o tamanho ou frequência de sampling
         runtime.loop(n=4000, capture=np.arange(0, 4000, 40, dtype=np.int32))
-        urenderer.utils.image_to_video(NOME_DA_CENA, fps=30)
+        urenderer.utils.image_to_video(NOME_DA_CENA, fps=24)
         urenderer.utils.clear_workdir(NOME_DA_CENA, image_only=True)
     else:
-        # Renderização salvando frames
         runtime.loop(capture=[1])
